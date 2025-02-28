@@ -1,2 +1,2 @@
 # SegueAI
-An AI-powered Spotify tool for DJs to find smooth transitions based on key, BPM, and energy."
+An AI-powered Spotify tool for DJs to find smooth transitions based on key, BPM, and energy.
