@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 8888;
 
 // Middleware for parsing cookies and managing sessions
+app.use(express.json());
 app.use(cookieParser());
 app.use(session({
   secret: 'your-session-secret',  // Use a fixed secret for development
@@ -122,6 +123,50 @@ app.get('/track_features/:trackId', (req, res) => {
       res.status(500).json({ error: "Error fetching track features", details: err });
     });
 });
+
+app.post('/create_playlist', (req, res) => {
+    const token = req.session.access_token;
+    if (!token) {
+      return res.redirect('/login');
+    }
+    
+    // Set the token on the API instance
+    spotifyApi.setAccessToken(token);
+    
+    // Get the playlist details from the request body
+    const { name, trackUris } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Playlist name is required' });
+    }
+    
+    // First, get the user's ID from Spotify
+    spotifyApi.getMe()
+      .then(userData => {
+        const userId = userData.body.id;
+        // Create a new playlist for the user
+        return spotifyApi.createPlaylist(userId, name, { 'public': false });
+      })
+      .then(playlistData => {
+        const playlistId = playlistData.body.id;
+        // If tracks were provided, add them to the playlist
+        if (trackUris && Array.isArray(trackUris) && trackUris.length > 0) {
+          return spotifyApi.addTracksToPlaylist(playlistId, trackUris)
+            .then(() => {
+              res.json({ message: 'Playlist created and tracks added successfully', playlistId });
+            })
+            .catch(err => {
+              console.error('Error adding tracks to playlist:', err);
+              res.status(500).json({ error: 'Playlist created but error adding tracks', details: err });
+            });
+        } else {
+          res.json({ message: 'Playlist created successfully', playlistId });
+        }
+      })
+      .catch(err => {
+        console.error('Error creating playlist:', err);
+        res.status(500).json({ error: 'Error creating playlist', details: err });
+      });
+  });  
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
